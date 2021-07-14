@@ -1,5 +1,32 @@
+## 
+## Example
+##
+#
+# Outputs:
+#
+# dns = {
+#   "helloservice.gcp.lab.perficientdevops.com" = [
+#     {
+#       "name" = "helloservice"
+#       "rrdatas" = [
+#         "ghs.googlehosted.com.",
+#       ]
+#       "type" = "CNAME"
+#     },
+#   ]
+# }
+# url = https://hello-app-ht5r4voqha-uc.a.run.app
+#
 
-# Display the service URL
-output "service_url" {
-  value = google_cloud_run_service.default.status[0].url
+
+## 
+## cloud run module outputs
+## https://registry.terraform.io/modules/garbetjie/cloud-run/google/latest?tab=outputs
+##
+output "dns" {
+  value = module.cloud_run_hello.dns
+}
+
+output "url" {
+  value = module.cloud_run_hello.url
 }

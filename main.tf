@@ -1,86 +1,74 @@
 
-#å Configure the Google Cloud provider
+##
+## Configure the Google Cloud provider
+##
 provider "google" {
- credentials = file("intrado-cloudrun-testing-3282f442a7cd.json")
- project     = "intrado-cloudrun-testing"
- region      = "us-central1"
+ credentials = file(var.credfile)
+ project     = var.project_id
+ region      = var.region
 }
 
-# # cloudresourcemanager.googleapis.com
+locals {
+  dns_name = "${var.servicename}.${var.subdomain}"
 
-# Enable Cloud DNS APIs
-resource "google_project_service" "cloud_dns" {
-  service = "dns.googleapis.com"
-
-  disable_on_destroy = true
 }
 
-resource "google_dns_managed_zone" "example_zone" {
-  name        = "example-zone"
-  dns_name    = "example-${random_id.rnd.hex}.com."
-  description = "Example DNS zone"
+##
+## Enable APIs for this project
+## * Cloud DNS APIs - dns.googleapis.com
+## * Cloud Run API - run.googleapis.com
+## * Cloud Resource Manager - cloudresourcemanager.googleapis.com
+##
+resource "google_project_service" "enabled_api" {
+  for_each = toset(["cloudresourcemanager.googleapis.com", "dns.googleapis.com", "run.googleapis.com"])
+
+    project = var.project_id
+    service = each.key
+    disable_on_destroy = false
+}
+
+## 
+## Setup some DNS to use
+## 
+resource "google_dns_managed_zone" "gcp_lab" {
+  name        = var.zonename
+  dns_name    = var.domain
   labels = {
     foo = "bar"
   }
 }
 
-resource "random_id" "rnd" {
-  byte_length = 4
-}
-
-# enable cloud run
-# Enables the Cloud Run API
-resource "google_project_service" "run_api" {
-  service = "run.googleapis.com"
-
-  disable_on_destroy = true
-}
-
-# Create the Cloud Run service
-# https://registry.terraform.io/providers/hashicorp/google/latest/docs/resources/cloud_run_service
-resource "google_cloud_run_service" "default" {
-  name = "app"
+##
+## Use module to instantiate a cloudrun service
+## 
+## N.B Ensure the service account is added to the verification property for this domain
+## at https://www.google.com/webmasters/verification/home?hl=en
+##
+module cloud_run_hello {
+  source = "garbetjie/cloud-run/google"
+  version = "= 1.0"
+  name = "hello-app"
+  image =  "gcr.io/google-samples/hello-app:1.0"
   location = "us-central1"
 
-  template {
-    spec {
-      containers {
-        image = "gcr.io/google-samples/hello-app:1.0"
-      }
-    }
-  }
+  allow_public_access = true # false
+  memory = 128
+  min_instances = 2
+  max_instances = 3
 
-  traffic {
-    percent         = 100
-    latest_revision = true
-  }
-
-  # Waits for the Cloud Run API to be enabled
-  depends_on = [google_project_service.run_api]
+  map_domains = [local.dns_name]
 }
 
-# Allow unauthenticated users to invoke the service
-resource "google_cloud_run_service_iam_member" "run_all_users" {
-  service  = google_cloud_run_service.default.name
-  location = google_cloud_run_service.default.location
-  role     = "roles/run.invoker"
-  member   = "allUsers"
-}
+##
+## Create DNS recordsets
+## 
+resource "google_dns_record_set" "api_run_dns_record_set" {
+  for_each = { for rs in lookup(module.cloud_run_hello.dns, local.dns_name, []): rs.name => rs }
 
-// recordsets = lookup(module.gcp-cloudrun-apps.cxportal-acm-service-domain-dns-records, "acm-service.${var.api_console_domain}", [])
-
-// sent to module
-// https://github.com/terraform-google-modules/terraform-google-cloud-dns/blob/master/main.tf
-
-resource "google_cloud_run_domain_mapping" "default" {
-  location = "us-central1"
-  name     = "hello.$(google_dns_managed_zone.example_zone.name)"
-
-  metadata {
-    namespace = "default"
-  }
-
-  spec {
-    route_name = google_cloud_run_service.default.name
-  }
+    project = var.project_id
+    managed_zone = var.zonename
+    name = "${each.value.name}.${var.subdomain}."
+    type = each.value.type
+    rrdatas = each.value.rrdatas
+    ttl = 300
 }
