@@ -39,14 +39,35 @@ module cloud_run_hello {
 
 ##
 ## Create DNS recordsets
-## 
-resource "google_dns_record_set" "api_run_dns_record_set" {
-  for_each = { for rs in lookup(module.cloud_run_hello.dns, local.dns_name, []): rs.name => rs }
+##
 
+## Scenario #1 - If we have more than one result we need to loop, this will require a two phase apply
+## or to restructure the plans so these happen independently.
+## 
+# resource "google_dns_record_set" "dns_record_set" {
+#   for_each = { for rs in lookup(module.cloud_run_hello.dns, local.dns_name, []): rs.name => rs }
+
+#     project = var.project_id
+#     managed_zone = var.zonename
+#     name = "${each.value.name}.${var.subdomain}."
+#     type = each.value.type
+#     rrdatas = each.value.rrdatas
+#     ttl = 300
+# }
+
+
+## Scenario #2 - If we assume that we will only get 1 CNAME record in the dns object
+## 
+locals {
+
+  cloudrun_cname = module.cloud_run_hello.dns[local.dns_name][0]
+}
+
+resource "google_dns_record_set" "dns_record_set" {
     project = var.project_id
     managed_zone = var.zonename
-    name = "${each.value.name}.${var.subdomain}."
-    type = each.value.type
-    rrdatas = each.value.rrdatas
+    name = "${local.cloudrun_cname.name}.${var.subdomain}."
+    type = local.cloudrun_cname.type
+    rrdatas = local.cloudrun_cname.rrdatas
     ttl = 300
 }
