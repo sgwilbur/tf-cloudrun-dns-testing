@@ -41,7 +41,8 @@ module cloud_run_hello {
 ## Create DNS recordsets
 ##
 
-## Scenario #1 - If we have more than one result we need to loop, this will require a two phase apply
+## Scenario #1 - If we have more than one result we need to loop, which we know throws the error that
+## Terraform needs to know the length of the loop to run, so this will require a two phase apply
 ## or to restructure the plans so these happen independently.
 ## 
 # resource "google_dns_record_set" "dns_record_set" {
