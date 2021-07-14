@@ -1,0 +1,5 @@
+region = "central1"
+project_id = "intrado-cloudrun-testing"
+zonename = "gcp-lab-perficientdevops"
+domain = "gcp.lab.perficientdevops.com."
+credfile = "creds.json"

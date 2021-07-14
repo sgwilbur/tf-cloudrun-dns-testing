@@ -10,36 +10,14 @@ provider "google" {
 
 locals {
   dns_name = "${var.servicename}.${var.subdomain}"
-
-}
-
-##
-## Enable APIs for this project
-## * Cloud DNS APIs - dns.googleapis.com
-## * Cloud Run API - run.googleapis.com
-## * Cloud Resource Manager - cloudresourcemanager.googleapis.com
-##
-resource "google_project_service" "enabled_api" {
-  for_each = toset(["cloudresourcemanager.googleapis.com", "dns.googleapis.com", "run.googleapis.com"])
-
-    project = var.project_id
-    service = each.key
-    disable_on_destroy = false
-}
-
-## 
-## Setup some DNS to use
-## 
-resource "google_dns_managed_zone" "gcp_lab" {
-  name        = var.zonename
-  dns_name    = var.domain
-  labels = {
-    foo = "bar"
-  }
 }
 
 ##
 ## Use module to instantiate a cloudrun service
+## the `garbetjie/cloud-run/google` helper module is a wrapper around:
+##  * google_cloud_run_service - to create service
+##  * google_cloud_run_service_iam_member - to setup access
+##  * google_cloud_run_domain_mapping - to map service to domains
 ## 
 ## N.B Ensure the service account is added to the verification property for this domain
 ## at https://www.google.com/webmasters/verification/home?hl=en
