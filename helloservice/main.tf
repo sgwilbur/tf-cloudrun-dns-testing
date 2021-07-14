@@ -60,7 +60,7 @@ module cloud_run_hello {
 ## Scenario #2 - If we assume that we will only get 1 CNAME record in the dns object
 ## 
 locals {
-
+  ## the dns object is a map of tuples, so we need to get the tuple, then the first item.
   cloudrun_cname = module.cloud_run_hello.dns[local.dns_name][0]
 }
 
